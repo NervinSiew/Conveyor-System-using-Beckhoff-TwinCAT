@@ -4,5 +4,7 @@ Developed a simple pick and place program using Beckhoff Servo and Stepper motor
 This program consists of different function blocks that were coded in structured text, and it runs a motion point to point library. 
 
 Finding the main program...
-Select "Motion Program" followed by "Untitled1" followed by "POUs" followed by "MAIN.TcPOU".\n
+
+Select "Motion Program" followed by "Untitled1" followed by "POUs" followed by "MAIN.TcPOU".
+
 The sequence is: Conveyor-System-using-Beckhoff-TwinCAT/Conveyor System/Motion Program/Untitled1/POUs/MAIN.TcPOU
