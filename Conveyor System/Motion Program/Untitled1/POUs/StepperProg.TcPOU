@@ -1,0 +1,127 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.9">
+  <POU Name="StepperProg" Id="{4abe51c2-0c57-4e84-8ff0-2c0efdf15063}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM StepperProg
+VAR
+		Servo : StructAxis;		//CONV 1
+	Stepper : StructAxis;	//CONV2
+	
+	ServoAxis : AXIS_REF;
+	StepperAxis : AXIS_REF;
+	oState : Conv2;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[CASE oState OF 
+	Conv2.Init: 						// setting intial position of Conv2
+		Stepper.MoveVel.Execute :=FALSE;  
+		stepper.Reset.Execute :=FALSE;
+		Servo.McStop.Execute := FALSE;
+		oState := Conv2.Enable; // move to next step(enabling servo motor)
+		
+	Conv2.Enable:					// Power up the stepper motor
+		stepper.Power.Enable := TRUE; 
+		stepper.Power.Enable_Positive := TRUE; // Ensure it is able to turn positive and negative
+		stepper.Power.Enable_Negative := TRUE;
+	   
+		
+		IF servo.Power.Status THEN
+			oState := Conv2.Conv2ON;
+ 		ELSIF servo.Power.Error THEN
+			oState := Conv2.Error;
+		END_IF
+		
+	Conv2.Conv2ON:
+		IF IO.bSwitch1 THEN						// Start button pressed
+			IO.bLed1 := TRUE;					// show logic works
+			oState := Conv2.MoveForwards;// Conv1 move forward
+		END_IF
+		
+	Conv2.MoveForwards:
+	
+		//stepper.MoveAbs.Position := 3600;
+		//stepper.MoveAbs.Velocity := 50; 
+	
+			stepper.MoveVel.Execute := TRUE;
+			stepper.MoveVel.Velocity := 100;
+		
+		//stepper.MoveAbs.Execute :=TRUE; 
+	
+		IF IO.bSwitch3 THEN					// if "Object" is detected on Conv2
+			IO.bLed3 := TRUE;
+			//iState := Conv1.Conv1OFF;
+			servo.MoveVel.Execute := FALSE;
+			oState := Conv2.Conv2Stop; // Conv2 Stop
+		END_IF
+		
+(*		IF IO.bSwitch3 THEN					// if "object" is detected on Conv2
+			iState := E_MoveState.Conv2OFF; // Conv2 stop
+		END_IF
+*)	
+	//Conv1.Conv1OFF:					// Stop Servo(Conv1)
+	//	servo.MoveVel.Execute := FALSE;
+	//	iState := Conv1.Conv1Stop;
+		
+	Conv2.Conv2Stop:
+		Servo.McStop.Execute := TRUE;
+				
+		IF Servo.McStop.Done THEN
+			oState := Conv2.Init;
+		END_IF
+		
+
+(*	Conv2.Conv2OFF:					// Stop Stepper(Conv2)
+		Stepper.MoveAbs.Execute :=FALSE;
+		IF NOT IO.bSwitch3 AND IO.bSwitch1 THEN
+			iState := E_MoveState.Conv2ON;
+		END_IF
+*)		
+(*	Conv2.Conv2ON:					//On Stepper(Conv2)
+		stepper.MoveAbs.Position := 3600;
+		stepper.MoveAbs.Velocity := 50; 
+		stepper.MoveAbs.Execute :=TRUE;
+*)		
+	IF servo.MoveVel.Error OR servo.MoveVel.CommandAborted THEN // if error or sudden estop initiated
+			oState := Conv2.Error;
+			stepper.MoveVel.Execute :=FALSE;
+			
+		END_IF
+		
+	Conv1.Error:													// if error, stop n reset
+		IF StepperAxis.Status.Error  THEN
+			oState := Conv2.Reset;
+		ELSE
+			oState := Conv2.Init;
+		END_IF
+		
+	Conv1.Reset:
+		Stepper.Reset.Execute := TRUE;
+		
+		
+		IF  servo.Reset.Done THEN
+			oState := Conv2.Init;
+		ELSIF servo.Reset.Error THEN
+			oState := Conv2.Error;
+		END_IF
+	
+	
+
+END_CASE
+
+]]></ST>
+    </Implementation>
+    <LineIds Name="StepperProg">
+      <LineId Id="15" Count="1" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="128" Count="0" />
+      <LineId Id="23" Count="3" />
+      <LineId Id="29" Count="0" />
+      <LineId Id="32" Count="43" />
+      <LineId Id="77" Count="39" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="118" Count="0" />
+      <LineId Id="117" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

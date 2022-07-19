@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.10">
+  <DUT Name="Conv1" Id="{5676eee3-98d6-4b1e-8cf9-684216d94522}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE Conv1 :
+(
+	Init :=0,
+	Enable,
+	Conv1ON,
+	Conv1OFF,
+	Conv1Stop,
+	tim1,
+	MoveForwards,
+	Error,
+	Reset
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,294 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.10">
+  <POU Name="MAIN" Id="{07b3dce6-b628-40b9-a967-2b66a8008996}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM MAIN
+VAR
+	Servo : StructAxis;		//CONV 1
+	Stepper : StructAxis;	//CONV2
+	
+	ServoAxis : AXIS_REF;
+	StepperAxis : AXIS_REF;
+	oState : Conv2;
+	iState : Conv1;
+	
+	tim1 : TON;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[ACT_Move();
+ACT_Power();
+ACT_Reset();
+ACT_Stop();
+
+CASE iState OF 
+	Conv1.Init: 						// setting intial position of Conv1
+		tim1(IN:=FALSE);
+		servo.MoveVel.Execute :=FALSE;  
+		servo.Reset.Execute :=FALSE;
+		
+		iState := Conv1.Enable; // move to next step(enabling servo motor)
+		
+	Conv1.Enable:					// Power up the Servo motor
+		servo.Power.Enable := TRUE;
+		servo.Power.Enable_Positive := TRUE;
+	    servo.Power.Enable_Negative := TRUE;
+		
+		IF servo.Power.Status THEN
+			iState := Conv1.Conv1ON;
+ 		ELSIF servo.Power.Error THEN
+			iState := Conv1.Error;
+		END_IF
+		
+	Conv1.Conv1ON:
+		IF IO.bSwitch1 THEN						// Start button pressed
+			IO.bLed1 := TRUE;					// show logic works
+			iState := Conv1.MoveForwards;// Conv1 move forward
+		
+		END_IF
+	Conv1.MoveForwards:
+		tim1(IN:=FALSE);
+	
+		Servo.MoveVel.Execute := TRUE;
+		Servo.MoveVel.Velocity := 100;
+	
+		IF IO.bSwitch2 THEN					// if "Box" is detected on Conv1
+			IO.bLed2 := TRUE;
+			servo.MoveVel.Execute := FALSE;
+			iState := Conv1.Conv1Stop; 		// Conv1 Stop
+		IF IO.bSwitch2 AND IO.bSwitch4 THEN
+			iState := Conv1.tim1;
+		END_IF
+		END_IF
+		
+	Conv1.tim1:
+			tim1(IN := TRUE,PT := T#5S);
+			IF tim1.Q THEN
+				iState := Conv1.MoveForwards;
+			END_IF
+			
+	Conv1.Conv1Stop:
+		Servo.McStop.Execute := TRUE;
+				
+		IF Servo.McStop.Done THEN
+			Servo.McStop.Execute := FALSE;
+			iState := Conv1.MoveForwards;
+		END_IF
+		
+	IF servo.MoveVel.Error OR servo.MoveVel.CommandAborted THEN // if error or sudden estop initiated
+			iState := Conv1.Error;
+			stepper.MoveVel.Execute :=FALSE;
+			
+		END_IF
+		
+	Conv1.Error:													// if error, stop n reset
+		IF StepperAxis.Status.Error  THEN
+			iState := Conv1.Reset;
+		ELSE
+			iState := Conv1.Init;
+		END_IF
+		
+	Conv1.Reset:
+		Servo.Reset.Execute := TRUE;
+		
+		
+		IF  servo.Reset.Done THEN
+			iState := Conv1.Init;
+		ELSIF servo.Reset.Error THEN
+			iState := Conv1.Error;
+		END_IF
+	
+	
+
+END_CASE
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			CASE oState OF 
+				Conv2.Init: 						// setting intial position of Conv2
+					Stepper.MoveVel.Execute :=FALSE;  
+					stepper.Reset.Execute :=FALSE;
+					Servo.McStop.Execute := FALSE;
+					oState := Conv2.Enable; // move to next step(enabling stepper motor)
+					
+				Conv2.Enable:					// Power up the stepper motor
+					stepper.Power.Enable := TRUE; 
+					stepper.Power.Enable_Positive := TRUE; // Ensure it is able to turn positive and negative
+					stepper.Power.Enable_Negative := TRUE;
+				   
+					
+					IF Stepper.Power.Status THEN
+						oState := Conv2.Conv2ON;
+			 		ELSIF Stepper.Power.Error THEN
+						oState := Conv2.Error;
+					END_IF
+					
+				Conv2.Conv2ON:
+					IF IO.bSwitch1 THEN						// Start button pressed
+						IO.bLed1 := TRUE;					// show logic works
+						oState := Conv2.MoveForwards;		// Conv2 move forward
+					ELSE IO.bLed1 := FALSE;
+					END_IF
+					
+				Conv2.MoveForwards:
+				
+						stepper.MoveVel.Execute := TRUE;
+						stepper.MoveVel.Velocity := 100;
+					
+					IF IO.bSwitch3 THEN					// if "Object" is detected on Conv2
+						IO.bLed3 := TRUE;
+						Stepper.MoveVel.Execute := FALSE;
+						oState := Conv2.Conv2Stop;	 	// Conv2 Stop
+					END_IF
+					
+				Conv2.Conv2Stop:
+					stepper.McStop.Execute := TRUE;
+							
+					IF NOT IO.bSwitch3 THEN
+						Stepper.McStop.Execute := FALSE;
+						oState := Conv2.MoveForwards;
+					END_IF
+					
+				IF Stepper.MoveVel.Error OR Stepper.MoveVel.CommandAborted THEN // if error or sudden estop initiated
+						oState := Conv2.Error;
+						stepper.MoveVel.Execute :=FALSE;
+						
+					END_IF
+					
+				Conv2.Error:													// if error, stop n reset
+					IF StepperAxis.Status.Error  THEN
+						oState := Conv2.Reset;
+					ELSE
+						oState := Conv2.Init;
+					END_IF
+					
+				Conv2.Reset:
+					Stepper.Reset.Execute := TRUE;
+					
+					IF  Stepper.Reset.Done THEN
+						oState := Conv2.Init;
+					ELSIF Stepper.Reset.Error THEN
+						oState := Conv2.Error;
+					END_IF
+				
+			END_CASE
+			]]></ST>
+    </Implementation>
+    <Action Name="ACT_Move" Id="{176658c8-fa86-43f2-9e39-a51b8813feed}">
+      <Implementation>
+        <ST><![CDATA[Servo.MoveVel(Axis := ServoAxis);
+	
+Stepper.MoveVel( Axis := StepperAxis);
+	]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="ACT_Power" Id="{d7d186e7-98bf-409e-9dd7-518f5e3b9bd6}">
+      <Implementation>
+        <ST><![CDATA[Servo.Power( Axis := ServoAxis);
+
+Stepper.Power( Axis := StepperAxis);
+]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="ACT_Reset" Id="{0ed80840-1307-4a41-af3f-cbaf470eb74d}">
+      <Implementation>
+        <ST><![CDATA[Servo.Reset( Axis := ServoAxis);
+
+Stepper.Reset( Axis := StepperAxis);]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="ACT_Stop" Id="{da3ba7eb-524f-477c-8948-77cf9c74676d}">
+      <Implementation>
+        <ST><![CDATA[Servo.McStop(Axis := ServoAxis);
+	
+Stepper.McStop( Axis := StepperAxis);]]></ST>
+      </Implementation>
+    </Action>
+    <LineIds Name="MAIN">
+      <LineId Id="2" Count="0" />
+      <LineId Id="13" Count="1" />
+      <LineId Id="322" Count="0" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="25" Count="0" />
+      <LineId Id="334" Count="0" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="26" Count="3" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="37" Count="7" />
+      <LineId Id="30" Count="0" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="105" Count="2" />
+      <LineId Id="337" Count="0" />
+      <LineId Id="47" Count="0" />
+      <LineId Id="114" Count="0" />
+      <LineId Id="53" Count="2" />
+      <LineId Id="58" Count="0" />
+      <LineId Id="60" Count="0" />
+      <LineId Id="68" Count="0" />
+      <LineId Id="167" Count="0" />
+      <LineId Id="191" Count="0" />
+      <LineId Id="190" Count="0" />
+      <LineId Id="342" Count="1" />
+      <LineId Id="71" Count="0" />
+      <LineId Id="346" Count="0" />
+      <LineId Id="323" Count="2" />
+      <LineId Id="329" Count="1" />
+      <LineId Id="186" Count="0" />
+      <LineId Id="359" Count="0" />
+      <LineId Id="65" Count="0" />
+      <LineId Id="184" Count="0" />
+      <LineId Id="208" Count="1" />
+      <LineId Id="212" Count="0" />
+      <LineId Id="210" Count="0" />
+      <LineId Id="136" Count="0" />
+      <LineId Id="360" Count="0" />
+      <LineId Id="140" Count="3" />
+      <LineId Id="139" Count="0" />
+      <LineId Id="148" Count="0" />
+      <LineId Id="150" Count="5" />
+      <LineId Id="164" Count="0" />
+      <LineId Id="156" Count="7" />
+      <LineId Id="149" Count="0" />
+      <LineId Id="137" Count="0" />
+      <LineId Id="133" Count="0" />
+      <LineId Id="135" Count="0" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="225" Count="23" />
+      <LineId Id="336" Count="0" />
+      <LineId Id="249" Count="1" />
+      <LineId Id="254" Count="3" />
+      <LineId Id="260" Count="2" />
+      <LineId Id="264" Count="1" />
+      <LineId Id="275" Count="0" />
+      <LineId Id="361" Count="0" />
+      <LineId Id="276" Count="3" />
+      <LineId Id="321" Count="0" />
+      <LineId Id="280" Count="0" />
+      <LineId Id="294" Count="0" />
+      <LineId Id="362" Count="0" />
+      <LineId Id="295" Count="15" />
+      <LineId Id="312" Count="4" />
+      <LineId Id="319" Count="1" />
+      <LineId Id="224" Count="0" />
+    </LineIds>
+    <LineIds Name="MAIN.ACT_Move">
+      <LineId Id="1" Count="0" />
+      <LineId Id="4" Count="1" />
+      <LineId Id="3" Count="0" />
+    </LineIds>
+    <LineIds Name="MAIN.ACT_Power">
+      <LineId Id="1" Count="0" />
+      <LineId Id="3" Count="0" />
+      <LineId Id="2" Count="0" />
+      <LineId Id="4" Count="0" />
+    </LineIds>
+    <LineIds Name="MAIN.ACT_Reset">
+      <LineId Id="1" Count="0" />
+      <LineId Id="3" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="MAIN.ACT_Stop">
+      <LineId Id="2" Count="1" />
+      <LineId Id="1" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

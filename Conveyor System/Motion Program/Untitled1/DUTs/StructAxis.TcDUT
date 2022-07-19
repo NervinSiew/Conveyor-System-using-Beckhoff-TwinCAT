@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.9">
+  <DUT Name="StructAxis" Id="{07a4ca50-b8ee-4246-bb45-a14c0136e79e}">
+    <Declaration><![CDATA[TYPE StructAxis :
+STRUCT
+	Power : MC_Power;
+	Reset : MC_Reset;
+	MoveAbs : MC_MoveAbsolute;
+	MoveRel : MC_MoveRelative;
+	halt : MC_Halt;
+	MoveVel : MC_MoveVelocity;
+	McStop : MC_Stop;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>
